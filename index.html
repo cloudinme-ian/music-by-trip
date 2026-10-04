@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Music by Trip</title>
+  <meta name="description" content="여행지를 입력하면 어울리는 음악 5곡과 유튜브 플레이리스트를 추천합니다.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" crossorigin="anonymous" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@400;500;700&family=Space+Mono:wght@400;700&display=swap">
+  <link rel="stylesheet" href="css/style.css">
+  <script type="module" src="js/app.js"></script>
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="./">
+      <span class="brand-mark" aria-hidden="true">✈︎♪</span>
+      <span>Music by Trip</span>
+    </a>
+    <button type="button" class="icon-btn" id="open-settings" aria-label="설정">
+      <span aria-hidden="true">⚙</span><span class="icon-btn-label">설정</span>
+    </button>
+  </header>
+
+  <main class="wrap">
+    <section class="hero">
+      <p class="eyebrow">YOUR TRAVEL SOUNDTRACK</p>
+      <h1>Hear the destination</h1>
+      <p class="lede">보딩패스에 음악을 담아 드릴게요.</p>
+
+      <form id="search-form" class="search" autocomplete="off">
+        <label class="visually-hidden" for="destination">여행지</label>
+        <input id="destination" name="destination" type="text" required maxlength="80"
+               placeholder="예: 교토, 크로아티아, 경주, 행궁동">
+        <button type="submit" class="btn btn-primary" id="submit-btn">추천 받기</button>
+      </form>
+
+      <fieldset class="moods" id="moods">
+        <legend class="visually-hidden">상황(선택)</legend>
+        <!-- 칩은 app.js에서 렌더링 -->
+      </fieldset>
+
+      <p class="hint">키가 아직 없나요? <button type="button" class="link-btn" id="demo-btn">샘플 보기</button></p>
+    </section>
+
+    <section id="result" class="result" aria-live="polite"></section>
+  </main>
+
+  <footer class="foot">
+    <p>추천: AI (<span id="provider-label">Gemini</span>) · 링크: YouTube · API 키는 이 브라우저에만 저장됩니다.</p>
+  </footer>
+
+  <dialog id="settings" class="dialog">
+    <form method="dialog" id="settings-form">
+      <h2>설정</h2>
+
+      <label class="field">
+        <span>AI 서비스</span>
+        <select id="provider" name="provider"></select>
+      </label>
+
+      <label class="field">
+        <span>Gemini API 키 <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">발급 ↗</a></span>
+        <input id="gemini-key" name="geminiKey" type="password" placeholder="AIza…" autocomplete="off">
+      </label>
+
+      <label class="field">
+        <span>Gemini 모델</span>
+        <input id="gemini-model" name="geminiModel" type="text" placeholder="gemini-2.5-flash">
+      </label>
+
+      <label class="field">
+        <span>YouTube Data API 키 <small>(선택 · 플레이리스트 링크용)</small>
+          <a href="https://console.cloud.google.com/apis/library/youtube.googleapis.com" target="_blank" rel="noopener">설정 ↗</a></span>
+        <input id="youtube-key" name="youtubeKey" type="password" placeholder="AIza…" autocomplete="off">
+      </label>
+
+      <p class="note">키는 localStorage에만 저장되며 다른 곳으로 전송되지 않습니다(각 API 호출 제외).</p>
+
+      <div class="dialog-actions">
+        <button type="button" class="btn btn-ghost" id="clear-keys">키 지우기</button>
+        <button type="button" class="btn btn-ghost" id="close-settings">취소</button>
+        <button type="submit" class="btn btn-primary" value="save">저장</button>
+      </div>
+    </form>
+  </dialog>
+
+  <noscript><p class="wrap">이 페이지는 JavaScript가 필요합니다.</p></noscript>
+</body>
+</html>
