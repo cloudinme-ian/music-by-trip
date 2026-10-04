@@ -127,10 +127,15 @@ node tools/match-preview.mjs --dest 교토 --country JP --season 가을 \
 4. `match-preview`로 대표 여행지 3~4곳을 돌려 봅니다. 예: 바다 휴양지 / 유럽 고도 / 대도시 야경 / 눈 덮인 산.
 
 ## 7. 영상 ID 운영
+카탈로그 곡에 `videoId`가 있으면 YouTube 키가 없는 사용자도 실제 영상 링크와 플레이리스트를 받습니다. 채우는 방법은 세 가지입니다. 위에서부터 권장합니다.
+
 ```bash
-YT_API_KEY=AIza... node tools/resolve-catalog.mjs [--limit 90]   # 비어 있는 videoId 채우기 (곡당 100 units)
-node tools/resolve-catalog.mjs --verify                          # 저장된 영상이 살아 있는지 확인 (oEmbed, 할당량 없음)
+GEMINI_API_KEY=AIza... node tools/resolve-catalog.mjs --ai [--limit 90]   # ① Gemini 제안 → oEmbed 확인 (YouTube 할당량 0)
+YT_API_KEY=AIza... node tools/resolve-catalog.mjs [--limit 90]           # ② ①에서 못 찾은 곡을 검색 (곡당 100 units)
+node tools/resolve-catalog.mjs --verify                                  # 저장된 영상이 살아 있고 곡과 맞는지 확인 (할당량 0)
 ```
-- 자동 검색은 첫 번째 결과를 그대로 씁니다. 커버나 라이브 영상이 걸릴 수 있으니 **로그를 보고 검수**하세요.
-- `--verify`는 주 1회 실행을 권장합니다. 깨진 영상은 `videoId`를 비워 두므로 다음 resolve 때 다시 찾습니다.
+- ③ **직접 입력 (0 unit):** 유튜브에서 공식 영상을 열고 주소의 `v=` 뒤 11자리를 붙여 넣습니다. 그다음 `--verify`로 확인하세요.
+- ①은 **영상 제목에 곡 제목이 있고, 제목이나 채널에 아티스트가 있을 때만** 저장합니다. 커버·노래방·리액션 영상은 거부합니다. 표기가 달라 대조가 안 되는 곡(예: 일본어 제목 영상)은 저장되지 않으니 ②나 ③으로 채우세요.
+- ②는 첫 번째 검색 결과를 저장합니다. 같은 대조 규칙에 걸리면 로그에 `⚠ 검수 필요`가 표시됩니다.
+- `--verify`는 주 1회 실행을 권장합니다. 깨지거나 다른 영상인 경우 `videoId`를 비워 두므로 다음 resolve 때 다시 찾습니다.
 - 영상 ID를 얼마나 오래 저장해도 되는지는 YouTube API 개발자 정책을 확인하고 지켜야 합니다.

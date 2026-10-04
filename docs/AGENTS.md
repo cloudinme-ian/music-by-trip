@@ -35,7 +35,9 @@ type Profile = { country: string /* ISO alpha-2 */; season: string; scenery: str
 
 ### 3.2 YouTube 모듈 → 앱
 ```ts
-attachVideoIds(tracks: Track[], apiKey: string): Promise<{ tracks: Track[]; error: string | null }>
+resolveVideoIds(tracks: Track[], { apiKey?: string }): Promise<{ tracks: Track[]; error: string | null }>
+// 순서: 저장된 videoId → AI 제안 suggestedId를 oEmbed로 확인(키 불필요) → apiKey 있으면 search.list → 없으면 null
+verifyVideoId(id, track) / matchesTrack(oembedInfo, track) / fetchOEmbed(id)
 playlistUrl(videoIds: string[]): string
 musicSearchUrl(track) / youtubeSearchUrl(track) / watchUrl(id) / musicWatchUrl(id) / thumbnailUrl(id): string
 ```

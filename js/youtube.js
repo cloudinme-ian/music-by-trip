@@ -1,6 +1,14 @@
-// YouTube 링크 생성 · 영상 검색 · 임시 플레이리스트 링크
+// YouTube 링크 생성 · 영상 ID 확인/검색 · 임시 플레이리스트 링크
+//
+// 영상 ID를 얻는 순서 (앞 단계에서 찾으면 뒤 단계는 건너뜀):
+//   1. 이미 있음 (카탈로그 곡)                         → 0 unit
+//   2. AI가 제안한 ID를 oEmbed로 확인 (키 불필요)      → 0 unit
+//   3. 사용자 YouTube 키가 있으면 search.list         → 곡당 100 units
+//   4. 못 찾으면 검색 링크
 
 const SEARCH_API = 'https://www.googleapis.com/youtube/v3/search';
+const OEMBED = 'https://www.youtube.com/oembed';
+export const VIDEO_ID_RE = /^[A-Za-z0-9_-]{11}$/;
 
 const query = (t) => `${t.artist} ${t.title}`;
 
@@ -48,17 +56,64 @@ async function findVideoId(track, apiKey) {
   return data.items?.[0]?.id?.videoId || null;
 }
 
-// videoId가 없는 곡만 검색해 붙인다 (카탈로그 곡은 이미 있음 → 0 unit). 실패한 곡은 검색 링크로 남는다.
-export async function attachVideoIds(tracks, apiKey) {
-  const results = await Promise.allSettled(
-    tracks.map((t) => (t.videoId ? Promise.resolve(t.videoId) : findVideoId(t, apiKey)))
+// ---------- 키 없이 확인: oEmbed ----------
+
+// 비교용 정규화: 대소문자·공백·기호 제거 (모든 문자 체계의 글자/숫자는 유지)
+const norm = (s) => String(s || '').normalize('NFKC').toLowerCase().replace(/[^\p{L}\p{N}]/gu, '');
+// "Best Part (feat. H.E.R.)" → "Best Part"
+const coreTitle = (s) => String(s || '').replace(/\s*[([（【].*?[)\]）】]\s*/g, ' ').trim() || s;
+const artistParts = (s) =>
+  String(s || '').split(/\s*(?:&|,|\/|\bx\b|\bfeat\.?|\bft\.?|\band\b|와|과)\s*/i).map(norm).filter((p) => p.length >= 2);
+const channelName = (s) => String(s || '').replace(/\s*-\s*Topic$/i, '').replace(/VEVO$/i, '');
+const UNWANTED = /cover|커버|karaoke|노래방|reaction|리액션|tutorial|강좌|lesson|\bmr\b|instrumental cover/i;
+
+// oEmbed 결과(영상 제목·채널)가 곡과 맞는지: 곡 제목이 영상 제목에 있고, 아티스트가 제목이나 채널에 있어야 함
+export function matchesTrack(info, track) {
+  if (!info?.title || UNWANTED.test(info.title)) return false;
+  const title = norm(info.title);
+  const where = title + norm(channelName(info.author_name));
+  const songTitle = norm(coreTitle(track.title));
+  if (!songTitle || !title.includes(songTitle)) return false;
+  return artistParts(track.artist).some((a) => where.includes(a));
+}
+
+// 영상이 존재하면 { title, author_name }, 없거나 비공개면 null. 키·할당량 불필요.
+export async function fetchOEmbed(videoId) {
+  if (!VIDEO_ID_RE.test(videoId || '')) return null;
+  const url = `${OEMBED}?format=json&url=${encodeURIComponent(watchUrl(videoId))}`;
+  try {
+    const res = await fetch(url);
+    return res.ok ? await res.json() : null;
+  } catch {
+    return null;
+  }
+}
+
+export async function verifyVideoId(videoId, track) {
+  const info = await fetchOEmbed(videoId);
+  return info && matchesTrack(info, track) ? videoId : null;
+}
+
+// ---------- 전체 해결 ----------
+
+// 곡마다 위 순서대로 videoId를 채운다. suggestedId(AI 제안)는 확인 후 버린다.
+export async function resolveVideoIds(tracks, { apiKey } = {}) {
+  const errors = [];
+  const resolved = await Promise.all(
+    tracks.map(async ({ suggestedId, ...t }) => {
+      if (t.videoId) return { ...t, idSource: t.idSource || 'catalog' };
+      const verified = suggestedId ? await verifyVideoId(suggestedId, t) : null;
+      if (verified) return { ...t, videoId: verified, idSource: 'ai-verified' };
+      if (apiKey) {
+        try {
+          const found = await findVideoId(t, apiKey);
+          if (found) return { ...t, videoId: found, idSource: 'search' };
+        } catch (err) {
+          errors.push(err.message);
+        }
+      }
+      return { ...t, videoId: null };
+    })
   );
-  const firstError = results.find((r) => r.status === 'rejected')?.reason;
-  return {
-    tracks: tracks.map((t, i) => ({
-      ...t,
-      videoId: results[i].status === 'fulfilled' ? results[i].value : null,
-    })),
-    error: firstError ? firstError.message : null,
-  };
+  return { tracks: resolved, error: errors[0] || null };
 }

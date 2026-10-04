@@ -19,6 +19,8 @@ ${moodLine}
 3. 두 곡의 아티스트는 서로 다르게 합니다.
 4. title과 artist는 YouTube 검색이 잘 되도록 원어(공식 표기) 그대로 씁니다.
 5. reason은 이 곡이 왜 그 장소에 어울리는지 한국어 한 문장으로 씁니다.
+6. videoId는 이 곡의 공식 뮤직비디오 또는 공식 음원(아티스트 채널·Topic 채널) YouTube 영상의 11자리 ID입니다.
+   정확히 알고 있을 때만 쓰고, 조금이라도 확실하지 않으면 빈 문자열로 둡니다. (앱이 실제 영상 제목과 대조해 확인합니다)
 
 [B] 여행지 프로필 → profile (아래 목록의 단어만 그대로 사용)
 - country: 여행지가 속한 나라의 ISO 3166-1 alpha-2 코드 (예: 일본 JP, 영국 GB, 한국 KR)
@@ -60,9 +62,10 @@ export const RESPONSE_SCHEMA = {
           artist: { type: 'STRING' },
           year: { type: 'INTEGER' },
           reason: { type: 'STRING' },
+          videoId: { type: 'STRING' },
         },
         required: ['title', 'artist', 'reason'],
-        propertyOrdering: ['title', 'artist', 'year', 'reason'],
+        propertyOrdering: ['title', 'artist', 'year', 'reason', 'videoId'],
       },
     },
   },
@@ -92,6 +95,8 @@ export function normalizeRecommendation(raw, { destination }) {
       year: Number.isInteger(t.year) ? t.year : null,
       reason: String(t.reason || '').trim(),
       videoId: null,
+      // AI가 제안한 영상 ID — 그대로 쓰지 않고 youtube.resolveVideoIds()가 oEmbed로 확인한 뒤에만 채택
+      suggestedId: /^[A-Za-z0-9_-]{11}$/.test(t.videoId || '') ? t.videoId : null,
       source: 'live',
     }));
 

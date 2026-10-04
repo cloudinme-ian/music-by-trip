@@ -131,6 +131,7 @@ function trackLinks(t) {
 // ?debug: 여행지 프로필과 무드 곡 점수 내역 표시 (태그·가중치 튜닝용)
 function renderDebug(rec) {
   const p = rec.profile || {};
+  const ids = rec.tracks.map((t) => `${escapeHtml(t.title)}: ${t.videoId ? escapeHtml(t.idSource || 'catalog') : '없음'}`).join(' · ');
   const rows = rec.tracks.filter((t) => t.source === 'catalog').map((t) => `
     <tr><td>${escapeHtml(t.catalogId)} ${escapeHtml(t.artist)} - ${escapeHtml(t.title)}</td><td>${t.score}</td>
     <td>${t.scoreParts.map(([k, v]) => `${escapeHtml(k)} ${v > 0 ? '+' : ''}${v}`).join(', ')}</td></tr>`).join('');
@@ -138,6 +139,7 @@ function renderDebug(rec) {
     <details class="debug" data-capture="skip" open>
       <summary>매칭 디버그</summary>
       <p>프로필 — 나라 ${escapeHtml(p.country)} · 계절 ${escapeHtml(p.season)} · 풍경 ${escapeHtml((p.scenery || []).join(', '))} · 분위기 ${escapeHtml((p.vibes || []).join(', '))}</p>
+      <p>영상 ID 출처 — ${ids}</p>
       <div class="debug-table"><table><tr><th>곡</th><th>최종 점수</th><th>내역 (다양성 보정 전)</th></tr>${rows}</table></div>
     </details>`;
 }
@@ -173,7 +175,7 @@ function renderPass(rec, { mood, ytNote }) {
     ? `<a class="btn btn-primary" href="${yt.playlistUrl(ids)}" target="_blank" rel="noopener">▶ 플레이리스트로 전체 재생</a>`
     : '';
   const note = ytNote || (ids.length < 2
-    ? '⚙ 설정에 YouTube Data API 키를 넣으면 실제 영상 링크와 전체 재생 플레이리스트 링크가 만들어집니다.'
+    ? '플레이리스트를 만들 영상이 부족해요. 다시 추천받거나 ⚙ 설정에 YouTube Data API 키를 넣으면 더 많은 곡을 찾을 수 있어요.'
     : '');
 
   els.result.innerHTML = `
@@ -300,12 +302,13 @@ async function recommend(destination, mood) {
     loadCatalog().catch(() => {}); // AI 응답을 기다리는 동안 미리 받아 두기
     let rec = await withCatalogPicks(await provider.recommend({ ...creds, destination, mood }), mood);
     rememberShown(rec.tracks.map((t) => t.catalogId).filter(Boolean));
+    // 영상 ID: 카탈로그 저장값 → AI 제안 ID를 oEmbed로 확인(키 불필요) → (키가 있으면) 검색
+    const { tracks, error } = await yt.resolveVideoIds(rec.tracks, { apiKey: settings.youtubeKey });
+    rec = { ...rec, tracks };
+    const missing = tracks.filter((t) => !t.videoId).length;
     let ytNote = '';
-    if (settings.youtubeKey) {
-      const { tracks, error } = await yt.attachVideoIds(rec.tracks, settings.youtubeKey);
-      rec = { ...rec, tracks };
-      if (error) ytNote = `일부 곡은 영상을 찾지 못해 검색 링크로 표시합니다. (${error})`;
-    }
+    if (missing && error) ytNote = `일부 곡은 영상을 찾지 못해 검색 링크로 표시합니다. (${error})`;
+    else if (missing && !settings.youtubeKey) ytNote = `영상을 확인하지 못한 ${missing}곡은 검색 링크로 표시합니다.`;
     renderPass(rec, { mood, ytNote });
   } catch (err) {
     console.error(err);
